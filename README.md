@@ -46,13 +46,13 @@ uv sync
 Train both models, select their best checkpoints, generate text, and compute metrics:
 
 ```bash
-uv run python -m src.transformers_class.run --mode train
+uv run -m src.transformers_class.run --mode train
 ```
 
 Generate again from stored checkpoints without training:
 
 ```bash
-uv run python -m src.transformers_class.run --mode generate
+uv run -m src.transformers_class.run --mode generate
 ```
 
 Generation mode expects `output/checkpoints/mlp.msgpack` and `output/checkpoints/transformer.msgpack`. Run training first if they do not exist.
@@ -111,7 +111,7 @@ $$
 then computes:
 
 $$
-A=\operatorname{softmax}\left(\frac{QK^\top}{\sqrt{d_h}}+M\right),
+A=\mathrm{softmax}\left(\frac{QK^\top}{\sqrt{d_h}}+M\right),
 \qquad Y=AV.
 $$
 
@@ -120,11 +120,11 @@ $$
 Each block uses pre-LayerNorm and residual connections:
 
 $$
-x\leftarrow x+\operatorname{Attention}(\operatorname{LN}(x)),
+x\leftarrow x+\mathrm{Attention}(\mathrm{LN}(x)),
 $$
 
 $$
-x\leftarrow x+\operatorname{MLP}(\operatorname{LN}(x)).
+x\leftarrow x+\mathrm{MLP}(\mathrm{LN}(x)).
 $$
 
 Residual paths improve gradient flow; LayerNorm stabilizes activations.
@@ -229,7 +229,7 @@ $$
 `optax.softmax_cross_entropy_with_integer_labels` uses integer targets without one-hot allocation. Reported perplexity is:
 
 $$
-\operatorname{PPL}=e^{\mathcal{L}}.
+\mathrm{PPL}=e^{\mathcal{L}}.
 $$
 
 Perplexities are comparable here because both models use the same tokenization and validation data.
@@ -266,7 +266,7 @@ Both strategies are autoregressive and use explicit JAX PRNG keys.
 `generate_with_multinomial_sampling` samples from the entire vocabulary after temperature scaling:
 
 $$
-p_i=\operatorname{softmax}(z_i/\tau).
+p_i=\mathrm{softmax}(z_i/\tau).
 $$
 
 Low temperature is conservative and may repeat; high temperature is diverse and makes malformed words more likely.
