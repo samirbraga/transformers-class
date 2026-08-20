@@ -78,7 +78,7 @@ Both models use token embeddings. The Transformer also adds learned positional e
 An autoregressive model predicts the next token from earlier tokens:
 
 $$
-p(x_1,\ldots,x_n)=\prod_t p(x_t\mid x_{<t}).
+p(x_1,\ldots,x_n)=\prod_{t=1}^{n}p(x_t\mid x_1,\ldots,x_{t-1}).
 $$
 
 During generation, a sampled character is appended to the sequence and becomes part of the next input. Generation is therefore sequential and early mistakes can propagate.
