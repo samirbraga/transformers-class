@@ -1,6 +1,6 @@
 # MLPs and Transformers from Scratch with JAX
 
-This is a didactic character-level language-modeling project. It trains two autoregressive models on the same Tiny Shakespeare corpus: a multilayer perceptron (MLP) that flattens a fixed context, and a causal Transformer that uses self-attention.
+This is a didactic language-modeling project. Its main experiment trains two autoregressive models on the same character-level Tiny Shakespeare corpus: a multilayer perceptron (MLP) that flattens a fixed context, and a causal Transformer that uses self-attention. An optional TinyStories experiment adds a small byte-level BPE tokenizer for more coherent subword generation.
 
 The objective is not state-of-the-art text generation. It is to expose the architectural differences while keeping the dataset, vocabulary, next-token task, optimizer, evaluation, and sampling procedures as comparable as possible.
 
@@ -12,19 +12,23 @@ The implementation uses [JAX](https://docs.jax.dev/en/latest/), [Flax NNX](https
 .
 ├── datasets/tiny_shakespeare/tinyshakespeare.txt
 ├── output/
-│   ├── checkpoints/{mlp,transformer}.msgpack
-│   ├── generation_metrics.json
-│   ├── loss_comparison.png
-│   ├── mlp_generated.txt
-│   └── transformer_generated.txt
+│   ├── tiny_shakespeare/
+│   │   ├── checkpoints/{mlp,transformer}.msgpack
+│   │   ├── generation_metrics.json
+│   │   ├── loss_comparison.png
+│   │   ├── mlp_generated.txt
+│   │   └── transformer_generated.txt
+│   └── tinystories/
 ├── src/transformers_class/
 │   ├── checkpoint.py       # NNX parameter persistence
 │   ├── generation.py       # multinomial and top-k decoding
 │   ├── interfaces.py       # shared LanguageModel protocol
-│   ├── load_dataset.py     # download, vocabulary, encoding, split
 │   ├── mlp.py              # flattened-context MLP
-│   ├── run.py              # experiment configuration and entry point
+│   ├── run_tiny_shakespeare.py # Tiny Shakespeare experiment
+│   ├── run_tinystories.py  # TinyStories subword experiment
 │   ├── text_metrics.py     # lexical metrics and terminal highlighting
+│   ├── tinystories_data.py # streaming, caching, and byte-level BPE
+│   ├── tiny_shakespeare_data.py # Shakespeare download and encoding
 │   ├── train.py            # batches, loss, optimization, early stopping
 │   ├── transformer.py      # attention and Transformer blocks
 │   ├── typings.py          # jaxtyping aliases
@@ -33,7 +37,7 @@ The implementation uses [JAX](https://docs.jax.dev/en/latest/), [Flax NNX](https
 └── README.md
 ```
 
-`run.py` is the orchestrator. It loads the data, constructs both models, calls the shared trainer, plots the losses, generates samples, and computes metrics. Generated artifacts live under `output/`; datasets and outputs are ignored by Git.
+`run_tiny_shakespeare.py` and `run_tinystories.py` are the experiment orchestrators. They load their respective data, construct models, call the shared trainer, plot losses, generate samples, and compute metrics. Generated artifacts live in dataset-specific directories under `output/`; datasets and outputs are ignored by Git.
 
 ## Getting started
 
@@ -46,18 +50,32 @@ uv sync
 Train both models, select their best checkpoints, generate text, and compute metrics:
 
 ```bash
-uv run -m src.transformers_class.run --mode train
+uv run -m src.transformers_class.run_tiny_shakespeare --mode train
 ```
 
 Generate again from stored checkpoints without training:
 
 ```bash
-uv run -m src.transformers_class.run --mode generate
+uv run -m src.transformers_class.run_tiny_shakespeare --mode generate
 ```
 
-Generation mode expects `output/checkpoints/mlp.msgpack` and `output/checkpoints/transformer.msgpack`. Run training first if they do not exist.
+Train the recommended Transformer experiment on a streamed TinyStories subset:
 
-The JAX dependency uses the CUDA 12 extra. `run.py` prints the devices detected by JAX. Consult the official [JAX installation and accelerator support guide](https://docs.jax.dev/en/latest/installation.html) when configuring CUDA. On a machine without a compatible NVIDIA setup, JAX may use CPU or report a CUDA initialization error.
+```bash
+uv run -m src.transformers_class.run_tinystories \
+    --mode train --model transformer
+```
+
+Use `--model both` to train the MLP and Transformer on exactly the same subword tokens. Generate later from stored TinyStories checkpoints with:
+
+```bash
+uv run -m src.transformers_class.run_tinystories \
+    --mode generate --model transformer
+```
+
+Generation mode expects `output/tiny_shakespeare/checkpoints/mlp.msgpack` and `output/tiny_shakespeare/checkpoints/transformer.msgpack`. Run training first if they do not exist.
+
+The JAX dependency uses the CUDA 12 extra. Each experiment runner prints the devices detected by JAX. Consult the official [JAX installation and accelerator support guide](https://docs.jax.dev/en/latest/installation.html) when configuring CUDA. On a machine without a compatible NVIDIA setup, JAX may use CPU or report a CUDA initialization error.
 
 ## Main concepts
 
@@ -151,6 +169,29 @@ The loader:
 
 The contiguous split avoids leaking nearly identical overlapping windows across train and validation. Tiny Shakespeare provides recurring speakers, dialogue, punctuation, and line structure, but it is not representative of general English.
 
+### TinyStories and subword tokenization
+
+The optional experiment uses [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories), a synthetic collection of short stories with deliberately simple language. It was designed for studying coherent generation in small language models.
+
+The full dataset repository is several gigabytes, so `tinystories_data.py` uses [Hugging Face Datasets streaming](https://huggingface.co/docs/datasets/stream) and stops after a configurable number of examples. Defaults are 20,000 training stories and 2,000 validation stories. Stories are cached as JSONL, so later executions do not stream them again.
+
+A byte-level BPE tokenizer is trained from scratch using [Hugging Face Tokenizers](https://huggingface.co/docs/tokenizers/). Byte Pair Encoding merges frequent adjacent units, producing representations between individual characters and complete words. Common words can become one token while rare words remain multiple subwords. This reduces malformed spelling and lets a fixed token context cover more text than the character model.
+
+The tokenizer uses NFKC normalization, a byte-level pre-tokenizer/decoder, a vocabulary of 2,048, and `<|unk|>`, `<|beginofstory|>`, and `<|endofstory|>` special tokens. The official [`BpeTrainer` documentation](https://huggingface.co/docs/tokenizers/main/api/trainers#tokenizers.trainers.BpeTrainer) describes its vocabulary and frequency settings.
+
+Data is cached under a configuration-specific path:
+
+```text
+datasets/tinystories/train_20000_validation_2000_vocab_2048/
+├── train.jsonl
+├── validation.jsonl
+├── tokenizer.json
+├── train_tokens.npy
+└── validation_tokens.npy
+```
+
+TinyStories results are isolated in `output/tinystories/`, with their own checkpoints, plot, generated texts, and metrics. The runner defaults to `--model transformer`; use `--model both` when direct architectural comparison matters more than training time.
+
 ## Models
 
 ### MLP architecture
@@ -242,7 +283,7 @@ Both models use:
 optax.adamw(learning_rate=3e-4, weight_decay=1e-3)
 ```
 
-The default experiment in `run.py` is:
+The default character experiment in `run_tiny_shakespeare.py` is:
 
 ```python
 BATCH_SIZE = 512
@@ -255,7 +296,7 @@ EARLY_STOPPING_MIN_DELTA = 1e-3
 
 Validation loss is the average of ten sampled batches. A batch of 512 may be efficient for the MLP but not optimal for Transformer throughput; reduce it to 128 or 256 if needed.
 
-The comparison plot is saved as `output/loss_comparison.png`.
+The comparison plot is saved as `output/tiny_shakespeare/loss_comparison.png`.
 
 ## Sampling strategies
 
@@ -281,7 +322,7 @@ GENERATION_TOP_K = 12
 GENERATION_LENGTH = 500
 ```
 
-The same settings and seed are used for both models. Text is saved to `output/mlp_generated.txt` and `output/transformer_generated.txt`. Terminal output colors words absent from the training vocabulary red; files contain no ANSI codes.
+The same settings and seed are used for both models. Text is saved to `output/tiny_shakespeare/mlp_generated.txt` and `output/tiny_shakespeare/transformer_generated.txt`. Terminal output colors words absent from the training vocabulary red; files contain no ANSI codes.
 
 ## Generated-text metrics
 
@@ -293,7 +334,7 @@ Metrics exclude the shared prompt and evaluate only the continuation:
 - `unique_word_count` and `unique_word_rate`;
 - `average_word_length`.
 
-They are saved to `output/generation_metrics.json`.
+For Tiny Shakespeare they are saved to `output/tiny_shakespeare/generation_metrics.json`; TinyStories uses `output/tinystories/generation_metrics.json`.
 
 Corpus-word rate is lexical plausibility, not grammar or coherence. Copying common words can score highly, while valid modern words absent from Shakespeare count as unknown. Use it alongside validation loss and qualitative inspection.
 
