@@ -2,7 +2,7 @@ from pathlib import Path
 import requests
 
 
-def download_file(url: str, filename: Path | str):
+def download_file(url: str, filename: Path | str, timeout: float = 30.0) -> str:
     if isinstance(filename, str):
         filename = Path(filename)
 
@@ -13,21 +13,22 @@ def download_file(url: str, filename: Path | str):
         print(f"File '{filename}' already exists. Skipping download.")
         return filename.read_text(encoding="utf-8")
 
-    response = requests.get(url)
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
 
-    if response.status_code == 200:
-        with open(filename, "wb") as file:
-            file.write(response.content)
-        print("Download complete.")
-    else:
-        print(f"Failed to download. Status code: {response.status_code}")
+    content = response.text
+    filename.write_text(content, encoding="utf-8")
+    print("Download complete.")
 
-    return response.content
+    return content
 
-def index_vocabulary(vocabulary: set[str]) -> dict[str, int]:
-    return {char: idx for idx, char in enumerate(sorted(vocabulary))}
+def index_vocabulary(vocabulary: set[str]) -> dict[int, str]:
+    return {idx: char for idx, char in enumerate(sorted(vocabulary))}
 
-def process_corpus(dataset_path: Path | str) -> tuple[list[tuple[str, str]],  dict[str, int], set[str]]:
+
+def process_corpus(
+    dataset_path: Path | str,
+) -> tuple[list[tuple[str, str]], dict[str, int], set[str]]:
     if isinstance(dataset_path, str):
         dataset_path = Path(dataset_path)
 
