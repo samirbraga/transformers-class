@@ -1,18 +1,18 @@
 {
   "MLP": {
-    "word_count": 101,
-    "corpus_word_count": 86,
-    "corpus_word_rate": 0.8514851485148515,
-    "unique_word_count": 70,
-    "unique_word_rate": 0.693069306930693,
-    "average_word_length": 3.762376237623762
+    "word_count": 103,
+    "corpus_word_count": 87,
+    "corpus_word_rate": 0.8446601941747572,
+    "unique_word_count": 75,
+    "unique_word_rate": 0.7281553398058253,
+    "average_word_length": 3.6699029126213594
   },
   "Transformer": {
     "word_count": 106,
-    "corpus_word_count": 103,
-    "corpus_word_rate": 0.9716981132075472,
-    "unique_word_count": 71,
-    "unique_word_rate": 0.6698113207547169,
-    "average_word_length": 3.5283018867924527
+    "corpus_word_count": 101,
+    "corpus_word_rate": 0.9528301886792453,
+    "unique_word_count": 64,
+    "unique_word_rate": 0.6037735849056604,
+    "average_word_length": 3.5943396226415096
   }
 }

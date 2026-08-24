@@ -1,10 +1,10 @@
 {
-  "MLP": {
-    "word_count": 200,
-    "corpus_word_count": 199,
-    "corpus_word_rate": 0.995,
-    "unique_word_count": 90,
-    "unique_word_rate": 0.45,
-    "average_word_length": 3.69
+  "Transformer": {
+    "word_count": 205,
+    "corpus_word_count": 202,
+    "corpus_word_rate": 0.9853658536585366,
+    "unique_word_count": 106,
+    "unique_word_rate": 0.5170731707317073,
+    "average_word_length": 3.6341463414634148
   }
 }
